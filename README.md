@@ -9,6 +9,7 @@ A machine learning models created for the real estate company 'Immo Eliza' to pr
 - [Dataset](#dataset)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Making Predictions](#making-predictions)
 - [Model Architecture](#model-architecture)
 - [Results &amp; Performance](#results--performance)
 - [Project Structure](#project-structure)
@@ -21,7 +22,7 @@ A machine learning models created for the real estate company 'Immo Eliza' to pr
 
 ### Objective
 
-Develop a comprehensive machine learning pipeline to predict real estate property prices across Belgium using three different models: Linear Regression, Decision Tree, and XGBoost. The project compares model performance and identifies the best approach for price prediction.
+Develop a comprehensive machine learning pipeline to predict real estate property prices across Belgium using three different models: Linear Regression, Decision Tree, and XGBoost. The project com[...]
 
 ### Business Impact
 
@@ -144,13 +145,13 @@ This executes the master pipeline that:
 🚀 [3/3] Optimizing XGBoost (GridSearchCV)...
 
 ============================================================================================
-                        FINAL MODEL PERFORMANCE SUMMARY                    
+                        FINAL MODEL PERFORMANCE SUMMARY            
 ============================================================================================
 Model Name           | Train R²   | Test R²    | Overfit Drop | Test MAE     | Test MSE         | Test RMSE   
 ------------------------------------------------------------------------------------------------------------
 Linear Regression    | 0.5660     | 0.6158     | 0.0%         | 137,208.52   | 47,353,848,598.38 | 217,609.39  
 Decision Tree        | 0.7349     | 0.6964     | 3.9%         | 114,141.29   | 37,423,465,297.41 | 193,451.45  
-XGBoost              | 0.7853     | 0.7469     | 3.8%         | 249.75       | 164,634.42       | 405.75     
+XGBoost              | 0.7853     | 0.7469     | 3.8%         | 249.75       | 164,634.42       | 405.75   
 ============================================================================================
 
 Total Pipeline Execution Time: XX.XX seconds
@@ -177,31 +178,184 @@ from source import train_XGBoost_model
 results = train_XGBoost_model.train_and_evaluate()
 ```
 
-#### 2. Make Predictions
+## 🎯 Making Predictions
 
-Load a trained model from the `models/` directory:
+### Using the Prediction Module (`predict.py`)
+
+The `source/predict.py` module provides an easy-to-use interface for making price predictions on new Belgian properties.
+
+#### Overview
+
+`predict.py` is a production-ready prediction module that:
+
+- Loads the pre-trained XGBoost model from disk
+- Accepts property feature data
+- Returns estimated market prices in EUR
+
+#### Module Components
+
+**1. `load_prediction_pipeline(export_path: str)`**
+
+- Loads the serialized XGBoost model from the specified file path
+- Validates that the model file exists before loading
+- Raises `FileNotFoundError` with helpful guidance if the model is missing
+- Uses `joblib` for efficient model deserialization
+
+**2. `generate_unseen_property() -> pd.DataFrame`**
+
+- Creates a sample property DataFrame with realistic Belgian property features
+- Demonstrates the required input format for predictions
+- Returns a structured DataFrame ready for model inference
+
+**Example property template:**
 
 ```python
-import pickle
+{
+    "latitude": [50.8503],           # GPS coordinates
+    "longitude": [4.3517],
+    "bedrooms": 2,                    # Property dimensions
+    "livable_surface": [100.0],       # in m²
+    "bathrooms": 1,
+    "toilets": 1,
+    "has_parking": 0,                 # Amenities (0/1)
+    "category": ["apartment"],        # Property type
+    "province": ["Brussels"],         # Location
+    "region": ["Brussels"],
+    "epc": ["E"],                     # Energy rating
+    "building_state": ["good"]        # Condition
+}
+```
+
+**3. `main()`**
+
+- Orchestrates the complete prediction workflow
+- Loads the model pipeline
+- Generates or accepts property data
+- Performs inference
+- Displays formatted prediction results
+
+#### Quick Start - Make a Prediction
+
+```bash
+python source/predict.py
+```
+
+This will:
+
+1. Load the trained XGBoost model
+2. Generate a sample property (Brussels apartment)
+3. Output the estimated market price:
+
+```
+Successfully loaded model checkpoint from: '.../models/immo_property_XGBoost_model.pkl'
+
+--- Input Property Features ---
+latitude  longitude  bedrooms  livable_surface  bathrooms  toilets  has_parking category province region epc building_state
+   50.8503    4.3517         2            100.0          1        1            0 apartment Brussels Brussels  E           good
+
+========================================
+         PRICE PREDICTION RESULT  
+========================================
+Estimated Market Value: 285,450.50 EUR
+========================================
+```
+
+#### Custom Predictions
+
+To predict prices for your own properties, modify the `generate_unseen_property()` function:
+
+```python
+def generate_unseen_property() -> pd.DataFrame:
+    """Generates a structured dictionary containing your Belgian property profile."""
+    new_listing = {
+        "latitude": [50.9],
+        "longitude": [4.4],
+        "bedrooms": 4,
+        "livable_surface": [150.0],
+        "bathrooms": 2,
+        "toilets": 2,
+        "has_parking": 1,
+        "category": ["house"],
+        "province": ["Antwerp"],
+        "region": ["Flanders"],
+        "epc": ["D"],
+        "building_state": ["excellent"]
+    }
+    return pd.DataFrame(new_listing)
+```
+
+Then run:
+
+```bash
+python source/predict.py
+```
+
+#### Programmatic Usage
+
+Use predictions within your own Python scripts:
+
+```python
+from source.predict import load_prediction_pipeline, generate_unseen_property
 import pandas as pd
 
-# Load trained model
-with open('models/best_model.pkl', 'rb') as f:
-    model = pickle.load(f)
+# Load the model
+model = load_prediction_pipeline('models/immo_property_XGBoost_model.pkl')
 
-# Prepare property data
-property_features = pd.DataFrame({
-    'living_area': [120],
-    'land_area': [500],
-    'rooms': [3],
-    'bathrooms': [2],
-    # ... other features
+# Create property data
+property_data = pd.DataFrame({
+    'latitude': [50.8503],
+    'longitude': [4.3517],
+    'bedrooms': 3,
+    'livable_surface': [120.0],
+    'bathrooms': 2,
+    'toilets': 2,
+    'has_parking': 1,
+    'category': ['apartment'],
+    'province': ['Brussels'],
+    'region': ['Brussels'],
+    'epc': ['D'],
+    'building_state': ['good']
 })
 
-# Get price prediction
-predicted_price = model.predict(property_features)
-print(f"Predicted Price: €{predicted_price[0]:,.2f}")
+# Get prediction
+predicted_price = model.predict(property_data)[0]
+print(f"Estimated Price: €{predicted_price:,.2f}")
 ```
+
+#### Input Features Reference
+
+| Feature             | Type  | Description                    | Example                      |
+| ------------------- | ----- | ------------------------------ | ---------------------------- |
+| `latitude`        | float | GPS latitude coordinate        | 50.8503                      |
+| `longitude`       | float | GPS longitude coordinate       | 4.3517                       |
+| `bedrooms`        | int   | Number of bedrooms             | 2                            |
+| `livable_surface` | float | Living area in m²             | 100.0                        |
+| `bathrooms`       | int   | Number of bathrooms            | 1                            |
+| `toilets`         | int   | Number of separate toilets     | 1                            |
+| `has_parking`     | int   | Parking available (0/1)        | 0                            |
+| `category`        | str   | Property type                  | apartment, house, villa      |
+| `province`        | str   | Belgian province               | Brussels, Antwerp, Liège    |
+| `region`          | str   | Region name                    | Wallonia, Flanders, Brussels |
+| `epc`             | str   | Energy Performance Certificate | A, B, C, D, E, F, G          |
+| `building_state`  | str   | Property condition             | poor, fair, good, excellent  |
+
+#### Troubleshooting Predictions
+
+**Issue: "Model artifact missing!"**
+
+- Solution: Ensure you've run `python main.py` to train and generate the model file
+- Check that `models/immo_property_XGBoost_model.pkl` exists
+
+**Issue: "Unexpected number of features"**
+
+- Solution: Verify all required input features are present in your DataFrame
+- Ensure feature names match exactly (case-sensitive)
+- Check that no additional unexpected columns are included
+
+**Issue: "ValueError: could not convert string to float"**
+
+- Solution: Verify numeric features (latitude, longitude, livable_surface) are numbers, not strings
+- Ensure categorical features are provided as strings in a list format
 
 ## 🧠 Model Architecture
 
@@ -270,8 +424,9 @@ immo-eliza-ml/
 ├── source/                            # Source code modules
 │   ├── __init__.py
 │   ├── train_linear_regression_model.py 
-│   ├── train_DT_model.py     
+│   ├── train_DT_model.py   
 │   ├── train_XGBoost_model.py   
+│   └── predict.py                    # Prediction module
 │
 ├── models/                            # Trained model storage
 │   ├── immo_property_regressor_model.pkl
@@ -295,6 +450,7 @@ scikit-learn==1.9.0          # Machine learning models
 scipy==1.18.0                # Scientific computing
 seaborn==0.13.2              # Statistical visualization
 xgboost==3.3.0               # Gradient boosting
+joblib>=1.0.0                # Model serialization
 ```
 
 ### Installation
@@ -420,32 +576,15 @@ Contributions are welcome! To contribute:
 - Add comments for complex logic
 - Keep functions focused and modular
 
-## 📝 License
-
-This project is open source and available under the MIT License.
-
 ## 👤 Author
 
 **Mahalakshmi P**
 
 - GitHub: [@mahalakshmip1604](https://github.com/mahalakshmip1604)
-
-## 📞 Support
-
-For questions, issues, or suggestions:
-
-- Open a [GitHub Issue](https://github.com/mahalakshmip1604/immo-eliza-ml/issues)
-- Check existing documentation
-- Review the main.py file for pipeline details
-
-## 🙏 Acknowledgments
-
-- Immo Eliza for the project opportunity
-- Python ML community for excellent libraries
-- XGBoost, scikit-learn, and pandas teams
+- LinkedIn: [www.linkedin.com/in/mahalakshmi-palanivel-4b6701296](https://www.linkedin.com/in/mahalakshmi-palanivel-4b6701296)
 
 ---
 
 **Last Updated**: July 2026
-**Version**: 1.0.0
+**Project**: BeCode Training Solo Project
 **Status**: Production Ready ✓
