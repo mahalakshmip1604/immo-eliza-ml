@@ -17,13 +17,13 @@ def display_results_table(results: dict) -> None:
     )
     print(header)
     print("-" * 108)
-    
+ 
     for model_name, metrics in results.items():
         row = (
             f"{model_name:<20} | {metrics['Train_R2']:<10} | {metrics['Test_R2']:<10} | "
             f"{metrics['Overfit']:<12} | {metrics['MAE']:<12} | {metrics['MSE']:<16} | {metrics['RMSE']:<12}"
         )
-        print(row)
+        print(row) 
         
     print("=" * 108 + "\n")
 
