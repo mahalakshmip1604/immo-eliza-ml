@@ -16,7 +16,7 @@ def load_prediction_pipeline(export_path: str) -> joblib.load:
             f"Please run your training script to generate the model file first."
         )
     return joblib.load(export_path)
-
+  
 
 def generate_unseen_property() -> pd.DataFrame:
     """Generates a structured dictionary containing a new Belgian property profile."""

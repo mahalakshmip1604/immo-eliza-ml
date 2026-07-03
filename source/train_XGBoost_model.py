@@ -35,7 +35,7 @@ NUMERIC_FEATURES = ["latitude", "longitude", "bedrooms", "livable_surface", "bat
 CATEGORICAL_FEATURES = ["category", "province", "epc", "building_state"]
 GROUP_MEDIAN_COLS = ["bedrooms", "bathrooms", "toilets"]
 GROUP_COL = "category"
-OUTLIER_QUANTILE = 0.99 
+OUTLIER_QUANTILE = 0.99     
 
 
 class GroupMedianImputer(BaseEstimator, TransformerMixin):
