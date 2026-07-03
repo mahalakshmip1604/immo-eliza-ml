@@ -26,11 +26,11 @@ COLS_TO_DROP = [
     "outdoor_parking", "cellar", "swimming_pool", "elevator", "running_water", 
     "flooding_area_type", "flood_g_score", "flood_p_score", "availability", "land_surface", 
     "number_of_floors", "apartment_floor", "maintenance_cost", "nearest_city_distance_km", 
-    "certain_parking_space", "nearest_city"
+    "certain_parking_space", "nearest_city", "region"
 ]
 
 NUMERIC_FEATURES = ["latitude", "longitude", "bedrooms", "livable_surface", "bathrooms", "toilets", "has_parking"]
-CATEGORICAL_FEATURES = ["category", "province", "region", "epc", "building_state"]
+CATEGORICAL_FEATURES = ["category", "province", "epc", "building_state"]
 
 
 def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
