@@ -11,7 +11,7 @@ from xgboost import XGBRegressor
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-DATA_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "data", "cleaned_sale_properties.csv"))
+DATA_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "data", "cleaned_rent_properties.csv"))
 
 MODEL_EXPORT_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "models", "immo_property_XGBoost_model.pkl"))
 
@@ -25,11 +25,11 @@ COLS_TO_DROP = [
     "outdoor_parking", "cellar", "swimming_pool", "elevator", "running_water", 
     "flooding_area_type", "flood_g_score", "flood_p_score", "availability", "land_surface", 
     "number_of_floors", "apartment_floor", "maintenance_cost", "nearest_city_distance_km", 
-    "certain_parking_space", "nearest_city","locality"
+    "certain_parking_space", "nearest_city","locality","region"
 ]
 
 NUMERIC_FEATURES = ["latitude", "longitude", "bedrooms", "livable_surface", "bathrooms", "toilets", "has_parking"]
-CATEGORICAL_FEATURES = ["category", "province", "region", "epc", "building_state"]
+CATEGORICAL_FEATURES = ["category", "province",  "epc", "building_state"]
 
 
 def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
@@ -86,11 +86,11 @@ def create_model_pipeline(preprocessor: ColumnTransformer) -> Pipeline:
     
     param_grid = {        
         'max_depth': [8],               # Lowered from 7 to stop deep memorization
-        'learning_rate': [0.03, 0.05], # Slower learning rates prevent aggressive overfitting
-        'subsample': [ 0.7,0.8],              # Use less data per tree to increase randomness
-        'colsample_bytree': [0.5, 0.6],       # Use fewer features per tree
-        'reg_alpha':[100, 500, 1000],             # L1 regularization to penalize complex leaves
-        'reg_lambda': [50, 100, 500],             # L2 regularization to smooth out weight changes
+        'learning_rate': [0.05], # Slower learning rates prevent aggressive overfitting
+        'subsample': [ 0.8],              # Use less data per tree to increase randomness
+        'colsample_bytree': [0.6],       # Use fewer features per tree
+        'reg_alpha':[50],             # L1 regularization to penalize complex leaves
+        'reg_lambda': [20],             # L2 regularization to smooth out weight changes
         'min_child_weight': [5]       # Forces larger property groups per leaf node    
     }
     
