@@ -26,7 +26,7 @@ COLS_TO_DROP = [
     "outdoor_parking", "cellar", "swimming_pool", "elevator", "running_water", 
     "flooding_area_type", "flood_g_score", "flood_p_score", "availability", "land_surface", 
     "number_of_floors", "apartment_floor", "maintenance_cost", "nearest_city_distance_km", 
-    "certain_parking_space", "nearest_city", "region"
+    "certain_parking_space", "nearest_city", "region" 
 ]
 
 NUMERIC_FEATURES = ["latitude", "longitude", "bedrooms", "livable_surface", "bathrooms", "toilets", "has_parking"]
