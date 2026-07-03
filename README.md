@@ -144,13 +144,13 @@ This executes the master pipeline that:
 🚀 [3/3] Optimizing XGBoost (GridSearchCV)...
 
 ============================================================================================
-                        FINAL MODEL PERFORMANCE SUMMARY                      
+                        FINAL MODEL PERFORMANCE SUMMARY                    
 ============================================================================================
 Model Name          | Train R²   | Test R²    | Overfit Drop | Test MAE     | Test MSE         | Test RMSE   
 ------------------------------------------------------------------------------------------------------------
 Linear Regression    | 0.5660     | 0.6158     | 0.0%         | 137,208.52   | 47,353,848,598.38 | 217,609.39  
 Decision Tree        | 0.7349     | 0.6964     | 3.9%         | 114,141.29   | 37,423,465,297.41 | 193,451.45  
-XGBoost              | 0.8154     | 0.7943     | 2.1%         | 231.78       | 125,104.21        | 353.70         
+XGBoost              | 0.7853     | 0.7469     | 3.8%         | 249.75       | 164,634.42        | 405.75     
 ============================================================================================
 
 Total Pipeline Execution Time: XX.XX seconds
@@ -270,7 +270,7 @@ immo-eliza-ml/
 ├── source/                            # Source code modules
 │   ├── __init__.py
 │   ├── train_linear_regression_model.py 
-│   ├── train_DT_model.py       
+│   ├── train_DT_model.py     
 │   ├── train_XGBoost_model.py   
 │
 ├── models/                            # Trained model storage

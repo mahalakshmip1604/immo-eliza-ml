@@ -8,7 +8,7 @@ from source import train_XGBoost_model
 def display_results_table(results: dict) -> None:
     """Renders a beautifully aligned ASCII validation grid summary map."""
     print("\n" + "=" * 108)
-    print("                              FINAL MODEL PERFORMANCE SUMMARY                              ")
+    print("                             FINAL MODEL PERFORMANCE SUMMARY                              ")
     print("=" * 108)
     
     header = (
