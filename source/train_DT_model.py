@@ -36,7 +36,7 @@ CATEGORICAL_FEATURES = ["category", "province", "epc", "building_state"]
 def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
     """
     Loads dataset from disk, drops unneeded features,
-    removes extreme price outliers
+    removes extreme price outliers 
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Missing input dataset at target path: {file_path}")
