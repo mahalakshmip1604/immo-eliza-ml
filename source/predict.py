@@ -4,7 +4,7 @@ import pandas as pd
 
 # 1. ESTABLISH ABSOLUTE REUSABLE DIRECTORY PATHS
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "models", "immo_property_XGBoost_model.pkl"))
+MODEL_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "models", "immo_property_sale_XGBoost_model.pkl"))
 
 
 def load_prediction_pipeline(export_path: str) -> joblib.load:
@@ -35,7 +35,6 @@ def generate_unseen_property() -> pd.DataFrame:
         # Categorical Features
         "category": ["apartment"],
         "province": ["Brussels"],
-        "region": ["Brussels"],
         "epc": ["E"],
         "building_state": ["good"]
     }

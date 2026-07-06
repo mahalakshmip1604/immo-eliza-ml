@@ -11,12 +11,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from scipy.stats import randint, uniform
 from xgboost import XGBRegressor
+from transformers import GroupMedianImputer
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DATA_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "data", "cleaned_rent_properties.csv"))
 
-MODEL_EXPORT_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "models", "immo_property_XGBoost_model.pkl"))
+MODEL_EXPORT_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "models", "immo_property_rent_XGBoost_model.pkl"))
 
 COLS_TO_DROP = [
     "postal_code", "property_id", "posting_date", "property_type", "transaction_type",
@@ -38,35 +39,6 @@ GROUP_COL = "category"
 OUTLIER_QUANTILE = 0.99     
 
 
-class GroupMedianImputer(BaseEstimator, TransformerMixin):
-    """
-    Fills missing values in `target_cols` using the median of each row's
-    `group_col` group. Medians are learned only from the data passed to
-    `fit`, so when used inside a Pipeline it only ever sees the training
-    fold/split - no leakage from validation/test data.
-    """
-
-    def __init__(self, group_col: str, target_cols: list[str]):
-        self.group_col = group_col
-        self.target_cols = target_cols
-
-    def fit(self, X: pd.DataFrame, y=None):
-        self.group_medians_ = {
-            col: X.groupby(self.group_col)[col].median() for col in self.target_cols
-        }
-        # fallback for categories unseen at fit time (or fully-NaN groups)
-        self.global_medians_ = X[self.target_cols].median()
-        return self
-
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        X = X.copy()
-        for col in self.target_cols:
-            mapped = X[self.group_col].map(self.group_medians_[col])
-            X[col] = X[col].fillna(mapped)
-            X[col] = X[col].fillna(self.global_medians_[col])
-        return X
-
-
 def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
     """
     Loads the dataset and drops unneeded/leaky columns.
@@ -81,7 +53,14 @@ def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
 
     cols_present = [c for c in COLS_TO_DROP if c in df.columns]
     df = df.drop(columns=cols_present).dropna(subset=["category", "price"])
+    # List of numeric columns that need category-based median imputation
+    target_cols = ["bedrooms", "bathrooms", "toilets"]
 
+    # Compute and fill medians grouped by category for all target columns at once
+    for col in target_cols:
+        category_medians = df.groupby("category")[col].transform("median")
+        df[col] = df[col].fillna(category_medians)
+        
     X = df.drop(columns=["price"])
     y = df["price"]
     return X, y
