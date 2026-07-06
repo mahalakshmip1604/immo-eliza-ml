@@ -6,18 +6,16 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from scipy.stats import randint, uniform
 from xgboost import XGBRegressor
-from transformers import GroupMedianImputer
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-DATA_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "data", "cleaned_rent_properties.csv"))
+DATA_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "data", "cleaned_sale_properties.csv"))
 
-MODEL_EXPORT_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "models", "immo_property_rent_XGBoost_model.pkl"))
+MODEL_EXPORT_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "models", "immo_property_sale_XGBoost_model.pkl"))
 
 COLS_TO_DROP = [
     "postal_code", "property_id", "posting_date", "property_type", "transaction_type",
@@ -36,7 +34,7 @@ NUMERIC_FEATURES = ["latitude", "longitude", "bedrooms", "livable_surface", "bat
 CATEGORICAL_FEATURES = ["category", "province", "epc", "building_state"]
 GROUP_MEDIAN_COLS = ["bedrooms", "bathrooms", "toilets"]
 GROUP_COL = "category"
-OUTLIER_QUANTILE = 0.99     
+OUTLIER_QUANTILE = 0.99
 
 
 def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
@@ -53,6 +51,7 @@ def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
 
     cols_present = [c for c in COLS_TO_DROP if c in df.columns]
     df = df.drop(columns=cols_present).dropna(subset=["category", "price"])
+
     # List of numeric columns that need category-based median imputation
     target_cols = ["bedrooms", "bathrooms", "toilets"]
 
@@ -60,7 +59,7 @@ def load_and_clean_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
     for col in target_cols:
         category_medians = df.groupby("category")[col].transform("median")
         df[col] = df[col].fillna(category_medians)
-        
+
     X = df.drop(columns=["price"])
     y = df["price"]
     return X, y
@@ -111,84 +110,89 @@ def build_preprocessing_pipeline() -> ColumnTransformer:
 
 def create_model_pipeline(preprocessor: ColumnTransformer) -> Pipeline:
     """
-    Wraps the group-median imputer, preprocessor, and a
-    RandomizedSearchCV-managed XGBRegressor inside one pipeline.
-
-    Switched from GridSearchCV with single-value "grids" (which wasn't
-    actually searching anything) to RandomizedSearchCV over real
-    distributions, including n_estimators - so tree count is tuned
-    alongside the regularization strength instead of being fixed.
+    Wraps the group-median imputer, preprocessor, and an aggressively
+    regularized GridSearchCV-managed XGBRegressor inside one pipeline.
+    
+    Grid size: max_depth(1) * learning_rate(2) * reg_alpha(2) * reg_lambda(2) * subsample(2)
+    = 16 combinations * 5 cv folds = 80 total fits. Highly manageable.
     """
-    # n_estimators is intentionally NOT searched here - it's decided later
-    # via early stopping on a genuine validation split (see find_best_n_estimators).
-    # Ranges below are narrowed vs. a fully open search: wide-open reg_alpha/
-    # max_depth let the previous search pick an overfit-prone combo (Train R²
-    # 0.92 vs Test R² 0.76). These bounds keep the search inside a
-    # regularization-favoring region instead of letting CV-mean chase a
-    # combo that happens to fit the training folds hard.
-    base_xgb = XGBRegressor(n_estimators=300, random_state=42, n_jobs=-1)
+    # Base configuration uses strict feature subsampling
+    base_xgb = XGBRegressor(
+        n_estimators=500,        
+        colsample_bytree=SHARED_FIXED_PARAMS["colsample_bytree"],   
+        min_child_weight=SHARED_FIXED_PARAMS["min_child_weight"],
+        gamma=SHARED_FIXED_PARAMS["gamma"],
+        random_state=42,
+        n_jobs=-1,
+    )
 
-    param_distributions = {
-        "max_depth": randint(3, 5),                  # was 3-9; cap depth
-        "learning_rate": uniform(0.02, 0.04),         # 0.02 - 0.12
-        "subsample": uniform(0.5, 0.3),               # 0.6 - 0.9
-        "colsample_bytree": uniform(0.4, 0.3),        # 0.5 - 0.8
-        "reg_alpha": uniform(10, 100),                 # 10 - 80, floor raised from 0
-        "reg_lambda": uniform(10, 40),                 # 5 - 40, floor raised from 1
-        "min_child_weight": randint(5, 15),           # was 1-10; floor raised
+    # Search space scaled to combat large magnitude gradient updates
+    param_grid = {
+        "max_depth":[3,4],             
+        "learning_rate": [0.03, 0.05],   
+        "reg_alpha":[10000, 50000],   # Massive L1 penalty to eliminate noise
+        "reg_lambda":[30, 50],        # Strong L2 penalty to smooth weights
+        "subsample": [0.5, 0.6],       # Strict row bagging for variance protection
     }
 
-    search = RandomizedSearchCV(
+    search = GridSearchCV(
         estimator=base_xgb,
-        param_distributions=param_distributions,
-        n_iter=40,
+        param_grid=param_grid,
         cv=5,
         scoring="r2",
         n_jobs=-1,
-        random_state=42,
         verbose=1,
     )
 
-    pipeline = Pipeline(steps=[
-        ("group_imputer", GroupMedianImputer(GROUP_COL, GROUP_MEDIAN_COLS)),
+    pipeline = Pipeline(steps=[        
         ("preprocessor", preprocessor),
         ("regressor", search),
     ])
     return pipeline
-
-
+# Global structural constraints shared across both methods to fix the 5.5% gap
+SHARED_FIXED_PARAMS = {
+    "colsample_bytree": 0.30,   # Drastically limit feature exposure per tree
+    "min_child_weight": 50,     # Enforce heavy row support to block micro-trends
+    "gamma": 10000.0,            # High split penalty tailored to multi-billion MSE
+}
 def find_best_n_estimators(
     best_params: dict, X_train_transformed: np.ndarray, y_train: pd.Series
 ) -> XGBRegressor:
     """
-    Carves a validation slice out of the (already preprocessed) training
-    data and uses early stopping to pick n_estimators by actual
-    validation performance, rather than letting RandomizedSearchCV guess
-    a tree count that merely maximizes CV-mean R² (a common cause of the
-    train/test gap we saw: 0.92 train vs 0.76 test).
+    Carves a validation slice out of the preprocessed training data and
+    uses a tightened early stopping window to pick an honest n_estimators count.
+    
+    Fixes the tree-explosion bug by matching the pipeline's fixed structural 
+    constraints, dropping early stopping patience, and capping the ceiling.
     """
     X_tr, X_val, y_tr, y_val = train_test_split(
         X_train_transformed, y_train, test_size=0.15, random_state=42
     )
 
-    model = XGBRegressor(
+    # Combined tuned parameters from GridSearch and fixed regularization constraints
+    full_hyperparams = {
         **best_params,
-        n_estimators=2000,          # high ceiling; early stopping finds the real number
+        **SHARED_FIXED_PARAMS
+    }
+
+    # Strict early stopping configuration to stop chasing minor gains
+    model = XGBRegressor(
+        **full_hyperparams,
+        n_estimators=900,               # Hard cap: stops the 1900+ tree creep
         random_state=42,
         n_jobs=-1,
-        early_stopping_rounds=50,
+        early_stopping_rounds=15,       # Swift cutoff when validation plateaus
         eval_metric="rmse",
     )
     model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)], verbose=False)
 
-    print(f"\nEarly stopping selected n_estimators = {model.best_iteration + 1} "
-          f"(ceiling was 2000)")
+    chosen_trees = model.best_iteration + 1
+    print(f"\nEarly stopping selected n_estimators = {chosen_trees} (ceiling was 600)")
 
-    # Refit on the FULL training set using the tree count early stopping found,
-    # so the final model isn't wasting 15% of training data on validation only.
+    # Refit on the FULL training set using the validated tree count
     final_model = XGBRegressor(
-        **best_params,
-        n_estimators=model.best_iteration + 1,
+        **full_hyperparams,
+        n_estimators=chosen_trees,
         random_state=42,
         n_jobs=-1,
     )
@@ -198,16 +202,16 @@ def find_best_n_estimators(
 
 def evaluate_and_diagnose(
     pipeline: Pipeline,
-    search: RandomizedSearchCV,
+    search: GridSearchCV,
     X_train: pd.DataFrame,
     X_test: pd.DataFrame,
     y_train: pd.Series,
     y_test: pd.Series,
 ) -> dict:
     """Calculates all metrics, prints diagnostics, and returns a dictionary of values."""
-    print("\n---- RANDOMIZED SEARCH RESULTS (structural params) ----")
+    print("\n---- GRID SEARCH RESULTS (structural params) ----")
     print(f"Best CV Hyperparameters: {search.best_params_}")
-    print(f"Best Validation Cross-Validation R²: {search.best_score_:.4f}")
+    print(f"Best Validation Cross-Validation R^2: {search.best_score_:.4f}")
     print(f"Final n_estimators (via early stopping): {pipeline.named_steps['regressor'].n_estimators}")
 
     train_r2 = pipeline.score(X_train, y_train)
@@ -219,8 +223,8 @@ def evaluate_and_diagnose(
     test_rmse = np.sqrt(test_mse)
 
     print("\n----MODEL EVALUATION METRICS----")
-    print(f"Training R² Score: {train_r2:.4f}")
-    print(f"Test R² Score:     {test_r2:.4f}")
+    print(f"Training R^2 Score: {train_r2:.4f}")
+    print(f"Test R^2 Score:     {test_r2:.4f}")
     print(f"Test MAE Error:    {test_mae:,.2f} EUR")
     print(f"Test MSE Error:    {test_mse:,.2f}")
     print(f"Test RMSE Error:   {test_rmse:,.2f} EUR")
@@ -262,16 +266,16 @@ def train_and_evaluate() -> dict:
     X_train, X_test, y_train, y_test = remove_price_outliers(X_train, X_test, y_train, y_test)
 
     # --- Stage 0: fit preprocessing (group imputer + encoder/scaler) on train only ---
-    group_imputer = GroupMedianImputer(GROUP_COL, GROUP_MEDIAN_COLS)
+    
     preprocessor = build_preprocessing_pipeline()
 
-    X_train_imputed = group_imputer.fit_transform(X_train)
-    X_train_transformed = preprocessor.fit_transform(X_train_imputed)
+    
+    X_train_transformed = preprocessor.fit_transform(X_train)
 
-    # --- Stage 1: RandomizedSearchCV picks structural/regularization params ---
+    # --- Stage 1: GridSearchCV picks structural/regularization params ---
     # (n_estimators deliberately excluded - see find_best_n_estimators)
     search = create_model_pipeline(preprocessor).named_steps["regressor"]
-    print("\nInitializing hyperparameter tuning via RandomizedSearchCV...")
+    print("\nInitializing hyperparameter tuning via GridSearchCV...")
     search.fit(X_train_transformed, y_train)
 
     # --- Stage 2: early stopping decides n_estimators on a held-out validation slice ---
@@ -281,7 +285,6 @@ def train_and_evaluate() -> dict:
     # These steps are already fitted; Pipeline.predict()/.score() just calls
     # transform/predict on each step in order, so no re-fit is needed here.
     pipeline = Pipeline(steps=[
-        ("group_imputer", group_imputer),
         ("preprocessor", preprocessor),
         ("regressor", final_regressor),
     ])
