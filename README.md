@@ -219,8 +219,7 @@ The `source/predict.py` module provides an easy-to-use interface for making pric
     "toilets": 1,
     "has_parking": 0,                 # Amenities (0/1)
     "category": ["apartment"],        # Property type
-    "province": ["Brussels"],         # Location
-    "region": ["Brussels"],
+    "province": ["Brussels"],         # Location    
     "epc": ["E"],                     # Energy rating
     "building_state": ["good"]        # Condition
 }
@@ -250,8 +249,8 @@ This will:
 Successfully loaded model checkpoint from: '.../models/immo_property_XGBoost_model.pkl'
 
 --- Input Property Features ---
-latitude  longitude  bedrooms  livable_surface  bathrooms  toilets  has_parking category province region epc building_state
-   50.8503    4.3517         2            100.0          1        1            0 apartment Brussels Brussels  E           good
+latitude  longitude  bedrooms  livable_surface  bathrooms  toilets  has_parking category province  epc building_state
+   50.8503    4.3517         2            100.0          1        1            0 apartment Brussels   E           good
 
 ========================================
          PRICE PREDICTION RESULT  
@@ -277,7 +276,6 @@ def generate_unseen_property() -> pd.DataFrame:
         "has_parking": 1,
         "category": ["house"],
         "province": ["Antwerp"],
-        "region": ["Flanders"],
         "epc": ["D"],
         "building_state": ["excellent"]
     }
@@ -312,7 +310,6 @@ property_data = pd.DataFrame({
     'has_parking': 1,
     'category': ['apartment'],
     'province': ['Brussels'],
-    'region': ['Brussels'],
     'epc': ['D'],
     'building_state': ['good']
 })
@@ -335,7 +332,6 @@ print(f"Estimated Price: €{predicted_price:,.2f}")
 | `has_parking`     | int   | Parking available (0/1)        | 0                            |
 | `category`        | str   | Property type                  | apartment, house, villa      |
 | `province`        | str   | Belgian province               | Brussels, Antwerp, Liège    |
-| `region`          | str   | Region name                    | Wallonia, Flanders, Brussels |
 | `epc`             | str   | Energy Performance Certificate | A, B, C, D, E, F, G          |
 | `building_state`  | str   | Property condition             | poor, fair, good, excellent  |
 
@@ -431,7 +427,7 @@ immo-eliza-ml/
 ├── models/                            # Trained model storage
 │   ├── immo_property_regressor_model.pkl
 │   ├── immo_property_DT_model.pkl
-│   ├── immo_property_XGBoost_model.pkl
+│   ├── immo_property_sale_XGBoost_model.pkl
 
 │
 └── .gitignore                         # Git ignore rules
@@ -496,9 +492,9 @@ pip install -r requirements.txt
 
 Models are saved to the `models/` directory:
 
-- `linear_regression_model.pkl`
-- `decision_tree_model.pkl`
-- `xgboost_model.pkl`
+- `immo_property_regressor_model.pkl`
+- `immo_property_DT_model.pkl`
+- `immo_property_sale_XGBoost_model.pkl`
 - Feature scalers and encoders
 
 ### Troubleshooting
