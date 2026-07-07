@@ -2,22 +2,6 @@
 
 A machine learning models created for the real estate company 'Immo Eliza' to predict sale prices of real estate properties in Belgium.
 
-## 📋 Table of Contents
-
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Dataset](#dataset)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Making Predictions](#making-predictions)
-- [Model Architecture](#model-architecture)
-- [Results &amp; Performance](#results--performance)
-- [Project Structure](#project-structure)
-- [Dependencies](#dependencies)
-- [Running the Pipeline](#running-the-pipeline)
-- [Contributing](#contributing)
-- [License](#license)
-
 ## 🎯 Project Overview
 
 ### Objective
